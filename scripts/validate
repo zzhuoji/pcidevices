@@ -16,6 +16,6 @@ fi
 
 echo "Running: golangci-lint run"
 ls -al
-go mod tidy
+go mod download
 golangci-lint run --timeout 10m
 

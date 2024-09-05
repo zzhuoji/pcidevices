@@ -1,6 +1,6 @@
 module github.com/harvester/pcidevices
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/evanphx/json-patch v5.6.0+incompatible

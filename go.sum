@@ -1365,7 +1365,7 @@ github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-b
 github.com/lightstep/lightstep-tracer-go v0.18.0/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/lithammer/dedent v1.1.0/go.mod h1:jrXYCQtgg0nJiN+StA2KgR7w6CiQNv9Fd/Z9BP0jIOc=
-github.com/longhorn/longhorn-manager v1.6.0 h1:tIU9Dtl5564jIxPM9qaax8Fvbd+FSDX8HQYH7U5E4vE=
+github.com/longhorn/longhorn-manager v1.6.0 h1:bU7l1BN+ylsJD5oEI5qtCIzc9HYdhB9zIfFPi9x9LkU=
 github.com/longhorn/longhorn-manager v1.6.0/go.mod h1:+v8jWi4y8leBGIdmUuopYIesx6o9Ih7bQC4JzFOCqaM=
 github.com/lovoo/gcloud-opentracing v0.3.0/go.mod h1:ZFqk2y38kMDDikZPAK7ynTTGuyt17nSPdS3K5e+ZTBY=
 github.com/lyft/protoc-gen-star v0.6.0/go.mod h1:TGAoBVkt8w7MPG72TrKIu85MIdXwDuzJYeZuUPFPNwA=
@@ -1650,8 +1650,8 @@ github.com/rancher/eks-operator v1.1.5 h1:IAE7nLBCaJaMEFGxZj23drpoq6R6+RXSYvr3Ai
 github.com/rancher/eks-operator v1.1.5/go.mod h1:mx3fp0rFzDX7gEXJtisHWDFeDJHpDsAjwDkmbSf1BKs=
 github.com/rancher/fleet/pkg/apis v0.0.0-20230123175930-d296259590be h1:6COvy2n88yI4m8Libx9vIFJVwWSbFEB0tu4TXkjrNeo=
 github.com/rancher/fleet/pkg/apis v0.0.0-20230123175930-d296259590be/go.mod h1:l64RFpFuKmcfb73Viq0dAbkj5kqRJjEh+AagOq13qyk=
-github.com/rancher/gke-operator v1.1.4 h1:M42t+UmXVZyYPF60ex5U1FpvxXEKhBBMA0OJ9xdzrKQ=
-github.com/rancher/gke-operator v1.1.4/go.mod h1:7lDe4okbyZeYZppEz1i60eowLN8iiT4ZN5UiEIVHp18=
+github.com/rancher/gke-operator v1.1.4 h1:A5+sOcGlUNa6XAv3KKXIuwyxAQTBaU7sD9ATA2kXoKo=
+github.com/rancher/gke-operator v1.1.4/go.mod h1:ZApFZ7iCuyzwX/+aCSdEqkbAPtOYcTH7/BeLoI/Mz9Y=
 github.com/rancher/lasso v0.0.0-20200427171700-e0509f89f319/go.mod h1:6Dw19z1lDIpL887eelVjyqH/mna1hfR61ddCFOG78lw=
 github.com/rancher/lasso v0.0.0-20210616224652-fc3ebd901c08/go.mod h1:9qZd/S8DqWzfKtjKGgSoHqGEByYmUE3qRaBaaAHwfEM=
 github.com/rancher/lasso v0.0.0-20230830164424-d684fdeb6f29 h1:+kige/h8/LnzWgPjB5NUIHz/pWiW/lFpqcTUkN5uulY=

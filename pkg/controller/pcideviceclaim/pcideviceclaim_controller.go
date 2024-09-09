@@ -43,6 +43,7 @@ var (
 const (
 	vfioPCIDriver     = "vfio-pci"
 	DefaultNS         = "harvester-system"
+	DefaultKubevirtNS = "kubevirt"
 	KubevirtCR        = "kubevirt"
 	vfioPCIDriverPath = "/sys/bus/pci/drivers/vfio-pci"
 )
@@ -353,7 +354,7 @@ func (h *Handler) createDevicePlugin(
 
 func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
-	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Get(KubevirtCR, &v1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
@@ -361,7 +362,7 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 
 	kvCopy := reconcileKubevirtCR(kv, pd)
 	if !reflect.DeepEqual(kv.Spec.Configuration.PermittedHostDevices, kvCopy.Spec.Configuration.PermittedHostDevices) {
-		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
+		_, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Update(kvCopy)
 		return err
 	}
 
@@ -405,11 +406,13 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 
 func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
 	// Get PCIDevice for the PCIDeviceClaim
-	if pdc.OwnerReferences == nil {
-		msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
-		return nil, errors.New(msg)
-	}
-	name := pdc.OwnerReferences[0].Name
+	//if pdc.OwnerReferences == nil {
+	//	msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
+	//	return nil, errors.New(msg)
+	//}
+	//name := pdc.OwnerReferences[0].Name
+	// webhook 都校验了
+	name := pdc.Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("error getting claim's device: %s", err)

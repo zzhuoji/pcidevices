@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/net"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
@@ -15,7 +14,6 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/harvester/pcidevices/pkg/util/common"
@@ -37,7 +35,7 @@ var (
 	defaultDevicePath = "/sys/bus/pci/devices"
 )
 
-func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
+func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache) ([]string, error) {
 	var skipInterfaces []string
 	managementInterfaces, err := IdentifyManagementNics()
 	if err != nil {
@@ -47,7 +45,7 @@ func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache,
 	skipInterfaces = append(skipInterfaces, managementInterfaces...)
 
 	// query interfaces used for vlanConfigs and add them to list of skipped interfaces
-	vlanConfigNICS, err := identifyClusterNetworks(nodeName, nodeCache, vlanConfigCache)
+	vlanConfigNICS, err := identifyClusterNetworks(nodeName, nodeCache)
 	if err != nil {
 		return nil, err
 	}
@@ -131,25 +129,25 @@ func IdentifyManagementNics() ([]string, error) {
 
 // identifyClusterNetworks will identify vlanConfigs covering the current node and identify NICs in use for
 // vlanconfigs
-func identifyClusterNetworks(nodeName string, _ ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
+func identifyClusterNetworks(nodeName string, _ ctlcorev1.NodeCache) ([]string, error) {
 	var nicsList []string
-	vlanConfigList, err := vlanConfigCache.List(labels.NewSelector())
-	if err != nil {
-		return nil, fmt.Errorf("error fetching vlanconfigs: %v", err)
-	}
-	for _, v := range vlanConfigList {
-		managedNodes, found := v.Annotations[matchedNodesAnnotation]
-		if !found { // if annotation not found, ignore as controller keeps checking on regular intervals
-			continue
-		}
-		ok, err := currentNodeMatchesSelector(nodeName, managedNodes)
-		if err != nil {
-			return nil, fmt.Errorf("error evaluating nodes from selector: %v", err)
-		}
-		if ok {
-			nicsList = append(nicsList, v.Spec.Uplink.NICs...)
-		}
-	}
+	//vlanConfigList, err := vlanConfigCache.List(labels.NewSelector())
+	//if err != nil {
+	//	return nil, fmt.Errorf("error fetching vlanconfigs: %v", err)
+	//}
+	//for _, v := range vlanConfigList {
+	//	managedNodes, found := v.Annotations[matchedNodesAnnotation]
+	//	if !found { // if annotation not found, ignore as controller keeps checking on regular intervals
+	//		continue
+	//	}
+	//	ok, err := currentNodeMatchesSelector(nodeName, managedNodes)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("error evaluating nodes from selector: %v", err)
+	//	}
+	//	if ok {
+	//		nicsList = append(nicsList, v.Spec.Uplink.NICs...)
+	//	}
+	//}
 	return nicsList, nil
 }
 
@@ -232,9 +230,9 @@ func ListNICSInUseBySRIOV(nics *net.Info) ([]string, error) {
 
 // GenerateSRIOVNics will generate list of v1beta1.SRIOVNetworkDevice Objects on regular reconciles to ensure new nics are processed, and nic's used for management
 // or cluster network configures are skipped from usage
-func GenerateSRIOVNics(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, nics *ghw.NetworkInfo) ([]*v1beta1.SRIOVNetworkDevice, error) {
+func GenerateSRIOVNics(nodeName string, nodeCache ctlcorev1.NodeCache, nics *ghw.NetworkInfo) ([]*v1beta1.SRIOVNetworkDevice, error) {
 	var skipNics []string
-	clusterNics, err := identifyClusterNetworks(nodeName, nodeCache, vlanConfigCache)
+	clusterNics, err := identifyClusterNetworks(nodeName, nodeCache)
 	if err != nil {
 		return nil, fmt.Errorf("error listing nics in use for vlanconfig for node %s: %v", nodeName, err)
 	}

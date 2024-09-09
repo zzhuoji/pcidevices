@@ -14,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"kubevirt.io/client-go/kubecli"
 
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
-
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
@@ -36,7 +34,6 @@ type handler struct {
 	pciDeviceClient          ctl.PCIDeviceClient
 	pciDeviceCache           ctl.PCIDeviceCache
 	nodeName                 string
-	vlanConfigCache          ctlnetworkv1beta1.VlanConfigCache
 	coreNodeCache            ctlcorev1.NodeCache
 	coreNodeCtl              ctlcorev1.NodeController
 	nodeCtl                  ctl.NodeController
@@ -57,7 +54,6 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	sriovCtl := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
 	pciDeviceCtl := management.DeviceFactory.Devices().V1beta1().PCIDevice()
 	coreNodeCtl := management.CoreFactory.Core().V1().Node()
-	vlanConfigCache := management.NetworkFactory.Network().V1beta1().VlanConfig().Cache()
 	nodeCtl := management.DeviceFactory.Devices().V1beta1().Node()
 	vGPUController := management.DeviceFactory.Devices().V1beta1().VGPUDevice()
 	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
@@ -76,7 +72,6 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		nodeName:                 nodeName,
 		coreNodeCache:            coreNodeCtl.Cache(),
 		coreNodeCtl:              coreNodeCtl,
-		vlanConfigCache:          vlanConfigCache,
 		nodeCtl:                  nodeCtl,
 		sriovNetworkDeviceCache:  sriovCtl.Cache(),
 		vGPUController:           vGPUController,
@@ -101,7 +96,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		return node, fmt.Errorf("error listing pcidevices: %v", err)
 	}
 
-	skipAddresses, err := nichelper.IdentifyHarvesterManagedNIC(h.nodeName, h.coreNodeCache, h.vlanConfigCache)
+	skipAddresses, err := nichelper.IdentifyHarvesterManagedNIC(h.nodeName, h.coreNodeCache)
 	if err != nil {
 		return node, fmt.Errorf("error identifying management nics: %v", err)
 	}
@@ -109,14 +104,14 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	pciBridgeAddresses := pcidevice.IdentifyPCIBridgeDevices(pci)
 	skipAddresses = append(skipAddresses, pciBridgeAddresses...)
 
-	pciHandler := pcidevice.NewHandler(h.pciDeviceClient, pci, h.coreNodeCache, h.vlanConfigCache, h.sriovNetworkDeviceCache, skipAddresses)
+	pciHandler := pcidevice.NewHandler(h.pciDeviceClient, pci, h.coreNodeCache, h.sriovNetworkDeviceCache, skipAddresses)
 	err = pciHandler.ReconcilePCIDevices(h.nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
 	}
 
 	// additional steps for sriov reconcile
-	sriovHelper := sriovdevice.NewHandler(h.ctx, h.sriovCache, h.sriovClient, h.nodeName, h.coreNodeCache, h.vlanConfigCache)
+	sriovHelper := sriovdevice.NewHandler(h.ctx, h.sriovCache, h.sriovClient, h.nodeName, h.coreNodeCache)
 	err = sriovHelper.SetupSriovDevices()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)

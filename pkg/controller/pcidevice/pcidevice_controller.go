@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
@@ -26,18 +25,16 @@ type Handler struct {
 	client                  ctl.PCIDeviceClient
 	pci                     *ghw.PCIInfo
 	nodeCache               ctlcorev1.NodeCache
-	vlanConfigCache         ctlnetworkv1beta1.VlanConfigCache
 	sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache
 	skipAddresses           []string
 }
 
 func NewHandler(client ctl.PCIDeviceClient, pci *ghw.PCIInfo, nodeCache ctlcorev1.NodeCache,
-	vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, skipAddresses []string) *Handler {
+	sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, skipAddresses []string) *Handler {
 	return &Handler{
 		client:                  client,
 		pci:                     pci,
 		nodeCache:               nodeCache,
-		vlanConfigCache:         vlanConfigCache,
 		sriovNetworkDeviceCache: sriovNetworkDeviceCache,
 		skipAddresses:           skipAddresses,
 	}

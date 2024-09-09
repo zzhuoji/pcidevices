@@ -6,7 +6,6 @@ import (
 	"os"
 	"reflect"
 
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,12 +18,11 @@ import (
 )
 
 type Handler struct {
-	ctx             context.Context
-	sriovCache      ctl.SRIOVNetworkDeviceCache
-	sriovClient     ctl.SRIOVNetworkDeviceClient
-	nodeName        string
-	nodeCache       ctlcorev1.NodeCache
-	vlanConfigCache ctlnetworkv1beta1.VlanConfigCache
+	ctx         context.Context
+	sriovCache  ctl.SRIOVNetworkDeviceCache
+	sriovClient ctl.SRIOVNetworkDeviceClient
+	nodeName    string
+	nodeCache   ctlcorev1.NodeCache
 }
 
 const (
@@ -32,25 +30,23 @@ const (
 )
 
 func NewHandler(ctx context.Context, sriovCache ctl.SRIOVNetworkDeviceCache, sriovClient ctl.SRIOVNetworkDeviceClient, nodeName string,
-	nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) *Handler {
+	nodeCache ctlcorev1.NodeCache) *Handler {
 	return &Handler{
-		ctx:             ctx,
-		sriovCache:      sriovCache,
-		sriovClient:     sriovClient,
-		nodeName:        nodeName,
-		nodeCache:       nodeCache,
-		vlanConfigCache: vlanConfigCache,
+		ctx:         ctx,
+		sriovCache:  sriovCache,
+		sriovClient: sriovClient,
+		nodeName:    nodeName,
+		nodeCache:   nodeCache,
 	}
 }
 
 func Register(ctx context.Context, management *config.FactoryManager) error {
 	sriovDeviceController := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
 	nodeCache := management.CoreFactory.Core().V1().Node().Cache()
-	vlanConfigCache := management.NetworkFactory.Network().V1beta1().VlanConfig().Cache()
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 
 	h := NewHandler(ctx, sriovDeviceController.Cache(), sriovDeviceController, nodeName,
-		nodeCache, vlanConfigCache)
+		nodeCache)
 	sriovDeviceController.OnChange(ctx, reconcileSriovDevice, h.reconcileSriovDevice)
 	return nil
 }
@@ -70,7 +66,7 @@ func (h *Handler) SetupSriovDevices() error {
 		return fmt.Errorf("error listing nics for node %s: %v", h.nodeName, err)
 	}
 
-	generatedSrioDeviceList, err := nichelper.GenerateSRIOVNics(h.nodeName, h.nodeCache, h.vlanConfigCache, nics)
+	generatedSrioDeviceList, err := nichelper.GenerateSRIOVNics(h.nodeName, h.nodeCache, nics)
 	if err != nil {
 		return fmt.Errorf("error generating sriovdevice list for node %s: %v", h.nodeName, err)
 	}

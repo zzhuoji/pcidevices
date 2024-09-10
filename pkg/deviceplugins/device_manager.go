@@ -169,11 +169,10 @@ func (dp *PCIDevicePlugin) Restart() error {
 	logrus.Infof("Restarting DevicePlugin: %s", dp.resourceName)
 	if dp.GetInitialized() {
 		dp.Stop()
-		//return fmt.Errorf("grpc server instance not found for %s", dp.resourceName)
 	}
-	//if dp.server == nil {
-	//	return fmt.Errorf("grpc server instance not found for %s", dp.resourceName)
-	//}
+	if dp.server != nil {
+		return fmt.Errorf("grpc server instance cannot stop properly %s", dp.resourceName)
+	}
 
 	stop := make(chan struct{})
 	return dp.Start(stop)
@@ -427,7 +426,7 @@ func (dp *PCIDevicePlugin) stopDevicePlugin() error {
 	}
 
 	dp.server.Stop()
-	//dp.server = nil
+	dp.server = nil
 	dp.setInitialized(false)
 	return dp.cleanup()
 }

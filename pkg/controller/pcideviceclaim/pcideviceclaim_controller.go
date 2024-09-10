@@ -359,6 +359,7 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
 	}
+	logrus.Debugf("pd name: %s for kv, kv Configuration PermittedHostDevices: %v", pd.Name, kv.Spec.Configuration.PermittedHostDevices)
 
 	kvCopy := reconcileKubevirtCR(kv, pd)
 	if !reflect.DeepEqual(kv.Spec.Configuration.PermittedHostDevices, kvCopy.Spec.Configuration.PermittedHostDevices) {
@@ -378,20 +379,17 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 	}
 	permittedPCIDevices := kv.Spec.Configuration.PermittedHostDevices.PciHostDevices
 	resourceName := pd.Status.ResourceName
+	// rule -> res name 没有则添加, 有则替换
 	// check if device is currently permitted
-	devPermitted := false
 	for i, permittedPCIDev := range permittedPCIDevices {
 		if permittedPCIDev.ResourceName == resourceName {
-			if permittedPCIDev.ExternalResourceProvider {
-				devPermitted = true
-			}
 			// remove device so it can be re-added
 			permittedPCIDevices = append(permittedPCIDevices[:i], permittedPCIDevices[i+1:]...)
 			break
 		}
 	}
 
-	if !devPermitted {
+	{
 		vendorID := pd.Status.VendorID
 		deviceID := pd.Status.DeviceID
 		devToPermit := kubevirtv1.PciHostDevice{

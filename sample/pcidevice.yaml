@@ -1,13 +1,20 @@
 apiVersion: devices.harvesterhci.io/v1beta1
 kind: PCIDevice
 metadata:
-  name: pcidevice-sample
+  annotations:
+    harvesterhci.io/pcideviceDriver: vfio-pci
+  labels:
+    nodename: epc02
+  name: epc02-000003000
+spec: {}
 status:
-  address: "00:1f.6"
-  vendorId: "8086"
-  deviceId: "0d4c"
-  classId: "0200"
-  nodeName: "titan"
-  resourceName: "intel.com/ETHERNET_CONNECTION_11_I219LM"
-  description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
-  kernelDriverInUse: "vfio-pci"
+  address: "0000:03:00.0"
+  classId: "0108"
+  description: 'Non-Volatile memory controller: Samsung Electronics Co Ltd NVMe SSD
+    Controller 980 (DRAM-less)'
+  deviceId: a809
+  iommuGroup: "10"
+  kernelDriverInUse: vfio-pci
+  nodeName: epc02
+  resourceName: samsung.com/NVME_SSD_CONTROLLER_980_DRAMLESS
+  vendorId: 144d

@@ -165,6 +165,17 @@ func (dp *PCIDevicePlugin) Stop() error {
 	return dp.stopDevicePlugin()
 }
 
+func (dp *PCIDevicePlugin) Restart() error {
+	logrus.Infof("Restarting DevicePlugin: %s", dp.resourceName)
+	if dp.server == nil {
+		return fmt.Errorf("grpc server instance not found for %s", dp.resourceName)
+	}
+	dp.Stop()
+
+	stop := make(chan struct{})
+	return dp.Start(stop)
+}
+
 // Start starts the device plugin
 func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 	logger := log.DefaultLogger()
@@ -375,6 +386,10 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 				}
 			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
 				logrus.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
+				if err := dp.Restart(); err != nil {
+					logrus.Errorf("%s: Unable to restart server %v", dp.resourceName, err)
+					return err
+				}
 				return nil
 			}
 		}
@@ -406,6 +421,7 @@ func (dp *PCIDevicePlugin) stopDevicePlugin() error {
 	}
 
 	dp.server.Stop()
+	dp.server = nil
 	dp.setInitialized(false)
 	return dp.cleanup()
 }

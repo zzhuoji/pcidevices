@@ -227,7 +227,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	for {
 		select {
 		case devHealth := <-dp.health:
-			logrus.Debugf("[ListAndWatch] watch chan > Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
+			logrus.Debugf("[ListAndWatch] watch chan > dp.health DevID = %s health = %s", devHealth.DevID, devHealth.Health)
 			for _, dev := range dp.devs {
 				if devHealth.DevID == dev.ID {
 					dev.Health = devHealth.Health
@@ -294,7 +294,6 @@ func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequ
 }
 
 func (dp *PCIDevicePlugin) healthCheck() error {
-	logger := log.DefaultLogger()
 	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -355,26 +354,27 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		case <-dp.stop:
 			return nil
 		case err := <-watcher.Errors:
-			logger.Reason(err).Errorf("error watching devices and device plugin directory")
+			logrus.Errorf("error watching devices and device plugin directory, %v", err)
 		case event := <-watcher.Events:
-			logger.V(4).Infof("health Event: %v", event)
+			logrus.Infof("health Event: %v", event)
+			logrus.Infof("monitoredDevices: %v", monitoredDevices)
 			if monDevID, exist := monitoredDevices[event.Name]; exist {
 				// Health in this case is if the device path actually exists
 				if event.Op == fsnotify.Create {
-					logger.Infof("monitored device %s appeared", dp.resourceName)
+					logrus.Infof("monitored device %s appeared", dp.resourceName)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Healthy,
 					}
 				} else if (event.Op == fsnotify.Remove) || (event.Op == fsnotify.Rename) {
-					logger.Infof("monitored device %s disappeared", dp.resourceName)
+					logrus.Infof("monitored device %s disappeared", dp.resourceName)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Unhealthy,
 					}
 				}
 			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
-				logger.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
+				logrus.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
 				return nil
 			}
 		}

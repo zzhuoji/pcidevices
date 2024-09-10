@@ -218,6 +218,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	}()
 
 	emptyList := []*pluginapi.Device{}
+	logrus.Debugf("[ListAndWatch]  first Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
 	err := s.Send(&pluginapi.ListAndWatchResponse{Devices: dp.devs})
 	if err != nil {
 		return err
@@ -226,6 +227,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	for {
 		select {
 		case devHealth := <-dp.health:
+			logrus.Debugf("[ListAndWatch] watch chan > Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
 			for _, dev := range dp.devs {
 				if devHealth.DevID == dev.ID {
 					dev.Health = devHealth.Health

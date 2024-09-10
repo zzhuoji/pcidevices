@@ -387,16 +387,17 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 						Health: pluginapi.Unhealthy,
 					}
 				}
-			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
-				logrus.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
-				return nil
 			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Create {
 				if err := dp.Restart(); err != nil {
 					logrus.Errorf("%s: Unable to restart server %v", dp.resourceName, err)
 					return err
 				}
+				logrus.Infof("%s: Successfully restarted device plugin server. Terminating.", dp.resourceName)
 				return nil
 			}
+			//else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
+			//	logrus.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
+			//}
 		}
 	}
 }

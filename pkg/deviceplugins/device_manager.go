@@ -205,9 +205,10 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 
 	errChan := make(chan error, 1)
 
-	go func() {
-		errChan <- dp.server.Serve(sock)
-	}()
+	//go func() {
+	//	errChan <- dp.server.Serve(sock)
+	//}()
+	go dp.server.Serve(sock)
 
 	err = waitForGRPCServer(dp.ctx, dp.socketPath, connectionTimeout)
 	if err != nil {
@@ -222,17 +223,20 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 	dp.setInitialized(true)
 	logger.Infof("Initialized DevicePlugin: %s", dp.resourceName)
 	dp.starter.started = true
-	err = <-errChan
 
-	return err
+	go func() {
+		errChan <- dp.healthCheck()
+	}()
+
+	return <-errChan
 }
 
 func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
 
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- dp.healthCheck()
-	}()
+	//errChan := make(chan error, 1)
+	//go func() {
+	//	errChan <- dp.healthCheck()
+	//}()
 
 	emptyList := []*pluginapi.Device{}
 	logrus.Debugf("[ListAndWatch]  first Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
@@ -269,7 +273,8 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 		log.DefaultLogger().Reason(err).Infof("%s device plugin failed to deregister: %s", dp.resourceName, err)
 	}
 	close(dp.deregistered)
-	return <-errChan
+	//return <-errChan
+	return nil
 }
 
 func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
@@ -368,11 +373,11 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		return fmt.Errorf("failed to watch device-plugin socket: %v", err)
 	}
 
-	logrus.Debugf("watcher watch: %v, add kubelet path: %s", watcher.WatchList(), pluginapi.KubeletSocket)
-	err = watcher.Add(pluginapi.KubeletSocket)
-	if err != nil {
-		logrus.Errorf("watcher error: %v", err)
-	}
+	//logrus.Debugf("watcher watch: %v, add kubelet path: %s", watcher.WatchList(), pluginapi.KubeletSocket)
+	//err = watcher.Add(pluginapi.KubeletSocket)
+	//if err != nil {
+	//	logrus.Errorf("watcher error: %v", err)
+	//}
 	logrus.Debugf("watcher watch: %v", watcher.WatchList())
 
 	for {
@@ -401,7 +406,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 						Health: pluginapi.Unhealthy,
 					}
 				}
-			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Remove {
+			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
 				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", method, event.Name, event.Op)
 				if err := dp.Restart(); err != nil {
 					logrus.Errorf("%s: Unable to restart server %v", method, err)

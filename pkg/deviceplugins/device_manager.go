@@ -344,13 +344,11 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 
 	for {
 		goon := false
-		out := make(chan struct{})
 		select {
-		case <-out:
-			goon = true
 		case <-dp.stop:
 			return nil
 		case <-time.After(1 * time.Second):
+			var e error = nil
 			for _, dev := range dp.devs {
 				// get iommuGroup from PCI Addr
 				for pciAddr, iommuGroup := range dp.iommuToPCIMap {
@@ -358,6 +356,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 						vfioDevice := filepath.Join(devicePath, iommuGroup)
 						err = watcher.Add(vfioDevice)
 						if err != nil {
+							e = err
 							logrus.Warningf("%s: failed to add the device %s to the watcher: %v, try again", method, vfioDevice, err)
 							break
 						}
@@ -365,10 +364,13 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 					}
 				}
 			}
+			//全部添加到watcher后则退出
+			if e == nil {
+				goon = true
+			}
 		}
-		logrus.Debugf("%s: add the device end, all monitoredDevices %v", method, monitoredDevices)
-
 		if goon {
+			logrus.Debugf("%s: add the device end, all monitoredDevices %v", method, monitoredDevices)
 			break
 		}
 	}

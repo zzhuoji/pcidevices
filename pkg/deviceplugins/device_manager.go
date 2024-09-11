@@ -342,20 +342,51 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		}
 	}
 
-	// probe all devices
-	for _, dev := range dp.devs {
-		// get iommuGroup from PCI Addr
-		for pciAddr, iommuGroup := range dp.iommuToPCIMap {
-			if pciAddr == dev.ID {
-				vfioDevice := filepath.Join(devicePath, iommuGroup)
-				err = watcher.Add(vfioDevice)
-				if err != nil {
-					return fmt.Errorf("failed to add the device %s to the watcher: %v", vfioDevice, err)
+	for {
+		goon := false
+		out := make(chan struct{})
+		select {
+		case <-out:
+			goon = true
+		case <-dp.stop:
+			return nil
+		case <-time.After(1 * time.Second):
+			for _, dev := range dp.devs {
+				// get iommuGroup from PCI Addr
+				for pciAddr, iommuGroup := range dp.iommuToPCIMap {
+					if pciAddr == dev.ID {
+						vfioDevice := filepath.Join(devicePath, iommuGroup)
+						err = watcher.Add(vfioDevice)
+						if err != nil {
+							logrus.Warningf("%s: failed to add the device %s to the watcher: %v, try again", method, vfioDevice, err)
+							break
+						}
+						monitoredDevices[dev.ID] = vfioDevice
+					}
 				}
-				monitoredDevices[dev.ID] = vfioDevice
 			}
 		}
+		logrus.Debugf("%s: add the device end, all monitoredDevices %v", method, monitoredDevices)
+
+		if goon {
+			break
+		}
 	}
+
+	// probe all devices
+	//for _, dev := range dp.devs {
+	//	// get iommuGroup from PCI Addr
+	//	for pciAddr, iommuGroup := range dp.iommuToPCIMap {
+	//		if pciAddr == dev.ID {
+	//			vfioDevice := filepath.Join(devicePath, iommuGroup)
+	//			err = watcher.Add(vfioDevice)
+	//			if err != nil {
+	//				return fmt.Errorf("failed to add the device %s to the watcher: %v", vfioDevice, err)
+	//			}
+	//			monitoredDevices[dev.ID] = vfioDevice
+	//		}
+	//	}
+	//}
 
 	dirName = filepath.Dir(dp.socketPath)
 	err = watcher.Add(dirName)

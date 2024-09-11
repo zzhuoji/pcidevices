@@ -80,6 +80,10 @@ type DeviceStarter struct {
 	backoff  []time.Duration
 }
 
+func (dp *PCIDevicePlugin) GetDevices() []*pluginapi.Device {
+	return dp.devs
+}
+
 func (dp *PCIDevicePlugin) GetPCIDevices() []*PCIDevice {
 	return dp.pcidevs
 }
@@ -369,9 +373,11 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		case err := <-watcher.Errors:
 			logrus.Errorf("error watching devices and device plugin directory, %v", err)
 		case event := <-watcher.Events:
-			logrus.Infof("health Event: %v", event)
-			logrus.Infof("monitoredDevices: %v", monitoredDevices)
+			//logrus.Infof("health Event: %v", event)
+			//logrus.Infof("monitoredDevices: %v", monitoredDevices)
 			if monDevID, exist := monitoredDevices[event.Name]; exist {
+				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s checkout devices: %v ", dp.resourceName, monitoredDevices)
+				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s Event name: %s Event Op %s", dp.resourceName, event.Name, event.Op)
 				// Health in this case is if the device path actually exists
 				if event.Op == fsnotify.Create {
 					logrus.Infof("monitored device %s appeared", dp.resourceName)
@@ -387,6 +393,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 					}
 				}
 			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Create {
+				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", dp.resourceName, event.Name, event.Op)
 				if err := dp.Restart(); err != nil {
 					logrus.Errorf("%s: Unable to restart server %v", dp.resourceName, err)
 					return err

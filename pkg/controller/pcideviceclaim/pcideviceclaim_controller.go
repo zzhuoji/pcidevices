@@ -102,6 +102,7 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 	if pdc == nil || pdc.DeletionTimestamp == nil {
 		return pdc, nil
 	}
+	logrus.Debugf("Into pdc OnRemove device: %s", pdc.Name)
 
 	// need to requeue object to ensure correct node picks up and cleanup/rebind is executed
 	if pdc.Spec.NodeName != h.nodeName {
@@ -132,6 +133,7 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 	)
 
 	if dp != nil {
+		logrus.Debugf("found device plugin pdc OnRemove device: %s", resourceName)
 		err = dp.RemoveDevice(pd, pdc)
 		if err != nil {
 			return pdc, err
@@ -139,6 +141,7 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 		// Check if that was the last device, and then shut down the dp
 		time.Sleep(5 * time.Second)
 		if dp.GetCount() == 0 {
+			logrus.Debugf("dp health devs equals 0, start stop dp, current devs: %v", dp.GetDevices())
 			err := dp.Stop()
 			if err != nil {
 				return pdc, err

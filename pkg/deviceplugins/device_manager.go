@@ -407,11 +407,11 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 	}
 
 	//logrus.Debugf("watcher watch: %v, add kubelet path: %s", watcher.WatchList(), pluginapi.KubeletSocket)
-	//err = watcher.Add(pluginapi.KubeletSocket)
+	err = watcher.Add(pluginapi.KubeletSocket)
 	//if err != nil {
 	//	logrus.Errorf("watcher error: %v", err)
 	//}
-	logrus.Debugf("watcher watch: %v", watcher.WatchList())
+	logrus.Debugf("%s watcher watch: %v", method, watcher.WatchList())
 
 	for {
 		select {
@@ -439,7 +439,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 						Health: pluginapi.Unhealthy,
 					}
 				}
-			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
+			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Create {
 				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", method, event.Name, event.Op)
 				if err := dp.Restart(); err != nil {
 					logrus.Errorf("%s: Unable to restart server %v", method, err)

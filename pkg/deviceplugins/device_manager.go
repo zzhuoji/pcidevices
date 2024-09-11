@@ -290,7 +290,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: emptyList}); err != nil {
 		log.DefaultLogger().Reason(err).Infof("%s device plugin failed to deregister: %s", dp.resourceName, err)
 	}
-	close(dp.deregistered)
+	//close(dp.deregistered)
 	//return <-errChan
 	return nil
 }

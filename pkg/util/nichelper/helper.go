@@ -25,7 +25,7 @@ const (
 	defaultBRInterface       = "mgmt-br"
 	defaultBOInterface       = "mgmt-bo"
 	matchedNodesAnnotation   = "network.harvesterhci.io/matched-nodes"
-	defaultHostNetworkNSPath = "/host/proc/1/ns/net"
+	defaultHostNetworkNSPath = "/proc/1/ns/net"
 	defaultTotalVFFile       = "sriov_totalvfs"
 	defaultConfiguredVFFile  = "sriov_numvfs"
 	interfaceAnnotation      = "sriov.devices.harvesterhi.io/interface-name"

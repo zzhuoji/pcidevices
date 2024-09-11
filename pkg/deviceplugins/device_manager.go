@@ -311,6 +311,8 @@ func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequ
 }
 
 func (dp *PCIDevicePlugin) healthCheck() error {
+	method := fmt.Sprintf("healthCheck(%s)", dp.resourceName)
+	logrus.Infof("%s: invoked", method)
 	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -371,6 +373,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 	if err != nil {
 		logrus.Errorf("watcher error: %v", err)
 	}
+	logrus.Debugf("watcher watch: %v", watcher.WatchList())
 
 	for {
 		select {
@@ -382,29 +385,29 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 			//logrus.Infof("health Event: %v", event)
 			//logrus.Infof("monitoredDevices: %v", monitoredDevices)
 			if monDevID, exist := monitoredDevices[event.Name]; exist {
-				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s checkout devices: %v ", dp.resourceName, monitoredDevices)
-				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s Event name: %s Event Op %s", dp.resourceName, event.Name, event.Op)
+				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s checkout devices: %v ", method, monitoredDevices)
+				logrus.Debugf("[fsnotify] [monitor devices]: current device plugin: %s Event name: %s Event Op %s", method, event.Name, event.Op)
 				// Health in this case is if the device path actually exists
 				if event.Op == fsnotify.Create {
-					logrus.Infof("monitored device %s appeared", dp.resourceName)
+					logrus.Infof("monitored device %s appeared", method)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Healthy,
 					}
 				} else if (event.Op == fsnotify.Remove) || (event.Op == fsnotify.Rename) {
-					logrus.Infof("monitored device %s disappeared", dp.resourceName)
+					logrus.Infof("monitored device %s disappeared", method)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Unhealthy,
 					}
 				}
 			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Remove {
-				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", dp.resourceName, event.Name, event.Op)
+				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", method, event.Name, event.Op)
 				if err := dp.Restart(); err != nil {
-					logrus.Errorf("%s: Unable to restart server %v", dp.resourceName, err)
+					logrus.Errorf("%s: Unable to restart server %v", method, err)
 					return err
 				}
-				logrus.Infof("%s: Successfully restarted device plugin server. Terminating.", dp.resourceName)
+				logrus.Infof("%s: Successfully restarted device plugin server. Terminating.", method)
 				return nil
 			}
 			//else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {

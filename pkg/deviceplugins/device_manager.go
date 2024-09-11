@@ -398,7 +398,7 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 						Health: pluginapi.Unhealthy,
 					}
 				}
-			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Create {
+			} else if event.Name == pluginapi.KubeletSocket && event.Op == fsnotify.Remove {
 				logrus.Debugf("[fsnotify] [KubeletSocket Event]: current device plugin: %s Event name: %s Event Op %s", dp.resourceName, event.Name, event.Op)
 				if err := dp.Restart(); err != nil {
 					logrus.Errorf("%s: Unable to restart server %v", dp.resourceName, err)

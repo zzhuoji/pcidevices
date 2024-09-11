@@ -72,6 +72,7 @@ type PCIDevicePlugin struct {
 	deregistered  chan struct{}
 	starter       *DeviceStarter
 	ctx           context.Context
+	restartState  bool
 }
 
 type DeviceStarter struct {
@@ -170,6 +171,10 @@ func (dp *PCIDevicePlugin) Stop() error {
 }
 
 func (dp *PCIDevicePlugin) Restart() error {
+	if dp.RestartLockState() {
+		return fmt.Errorf("DevicePlugin %s already restarted", dp.resourceName)
+	}
+	dp.RestartLock()
 	logrus.Infof("Restarting DevicePlugin: %s", dp.resourceName)
 	if dp.GetInitialized() {
 		dp.Stop()
@@ -180,6 +185,19 @@ func (dp *PCIDevicePlugin) Restart() error {
 
 	stop := make(chan struct{})
 	return dp.Start(stop)
+}
+
+func (dp *PCIDevicePlugin) RestartLock() bool {
+	dp.lock.Lock()
+	defer dp.lock.Unlock()
+	dp.restartState = true
+	return dp.restartState
+}
+
+func (dp *PCIDevicePlugin) RestartLockState() bool {
+	dp.lock.Lock()
+	defer dp.lock.Unlock()
+	return dp.restartState
 }
 
 // Start starts the device plugin

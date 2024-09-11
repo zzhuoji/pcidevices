@@ -117,7 +117,7 @@ func NewPCIDevicePlugin(ctx context.Context, pciDevices []*PCIDevice, resourceNa
 		socketPath:    serverSock,
 		resourceName:  resourceName,
 		devicePath:    vfioDevicePath,
-		deviceRoot:    util.HostRootMount,
+		deviceRoot:    "/host" + util.HostRootMount,
 		iommuToPCIMap: iommuToPCIMap,
 		health:        make(chan deviceHealth),
 		initialized:   false,

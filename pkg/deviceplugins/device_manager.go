@@ -366,6 +366,12 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		return fmt.Errorf("failed to watch device-plugin socket: %v", err)
 	}
 
+	logrus.Debugf("watcher watch: %v, add kubelet path: %s", watcher.WatchList(), pluginapi.KubeletSocket)
+	err = watcher.Add(pluginapi.KubeletSocket)
+	if err != nil {
+		logrus.Errorf("watcher error: %v", err)
+	}
+
 	for {
 		select {
 		case <-dp.stop:

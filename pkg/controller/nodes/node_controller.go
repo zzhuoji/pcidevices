@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/util/json"
+
 	"os"
 	"reflect"
 	"time"
@@ -55,15 +55,6 @@ const (
 	NS                    = "harvester-system"
 	SupportedPciConfigMap = "supported-pci"
 )
-
-// node name - pci filter list
-var NodeSupportedPciDevices = make(map[string][]PciSpec)
-
-type PciSpec struct {
-	VendorId  string `yaml:"vendorId" json:"vendorId"`
-	DeviceId  string `yaml:"deviceId" json:"deviceId"`
-	AddressId string `yaml:"addressId" json:"addressId"`
-}
 
 func Register(ctx context.Context, management *config.FactoryManager) error {
 	sriovCtl := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
@@ -116,9 +107,9 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		}
 	}
 	for k, v := range spciCm.Data {
-		NodeSupportedPciDevices[k] = parsePciSpec(v)
+		config.NodeSupportedPciDevices[k] = config.ParsePciSpec(v)
 	}
-	logrus.Infof("[NodeController] Node %s has %d supported pci devices", node.Name, len(NodeSupportedPciDevices))
+	logrus.Infof("[NodeController] Node %s has %d supported pci devices", node.Name, len(config.NodeSupportedPciDevices))
 
 	pci, err := ghw.PCI()
 	if err != nil {
@@ -163,15 +154,6 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 
 	h.nodeCtl.EnqueueAfter(name, defaultRequeuePeriod)
 	return node, err
-}
-
-func parsePciSpec(v string) []PciSpec {
-	var ps []PciSpec
-	err := json.Unmarshal([]byte(v), &ps)
-	if err != nil {
-
-	}
-	return ps
 }
 
 func SetupNodeObjects(nodeCtl ctl.NodeController) error {

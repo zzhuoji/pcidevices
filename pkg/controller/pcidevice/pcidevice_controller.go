@@ -2,7 +2,7 @@ package pcidevice
 
 import (
 	"fmt"
-	"github.com/harvester/pcidevices/pkg/controller/nodes"
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/jaypipes/ghw/pkg/pci"
 	"time"
 
@@ -132,7 +132,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 }
 
 func isSupportedPciDevice(nodename string, dev *pci.Device) bool {
-	if v := nodes.NodeSupportedPciDevices[nodename]; v != nil {
+	if v := config.NodeSupportedPciDevices[nodename]; v != nil {
 		for _, ps := range v {
 			//必须先匹配vendor和device
 			match := ps.VendorId == dev.Vendor.ID && ps.DeviceId == dev.Product.ID

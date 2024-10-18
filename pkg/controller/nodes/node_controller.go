@@ -3,6 +3,8 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/util/json"
 	"os"
 	"reflect"
 	"time"
@@ -36,6 +38,8 @@ type handler struct {
 	nodeName                 string
 	coreNodeCache            ctlcorev1.NodeCache
 	coreNodeCtl              ctlcorev1.NodeController
+	coreCmCache              ctlcorev1.ConfigMapCache
+	coreCmCtl                ctlcorev1.ConfigMapController
 	nodeCtl                  ctl.NodeController
 	sriovNetworkDeviceCache  ctl.SRIOVNetworkDeviceCache
 	vGPUController           ctl.VGPUDeviceController
@@ -47,13 +51,25 @@ type handler struct {
 }
 
 const (
-	reconcilePCIDevices = "reconcile-pcidevices"
+	reconcilePCIDevices   = "reconcile-pcidevices"
+	NS                    = "harvester-system"
+	SupportedPciConfigMap = "supported-pci"
 )
+
+// node name - pci filter list
+var NodeSupportedPciDevices = make(map[string][]PciSpec)
+
+type PciSpec struct {
+	VendorId  string `yaml:"vendorId" json:"vendorId"`
+	DeviceId  string `yaml:"deviceId" json:"deviceId"`
+	AddressId string `yaml:"addressId" json:"addressId"`
+}
 
 func Register(ctx context.Context, management *config.FactoryManager) error {
 	sriovCtl := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
 	pciDeviceCtl := management.DeviceFactory.Devices().V1beta1().PCIDevice()
 	coreNodeCtl := management.CoreFactory.Core().V1().Node()
+	coreCmCtl := management.CoreFactory.Core().V1().ConfigMap()
 	nodeCtl := management.DeviceFactory.Devices().V1beta1().Node()
 	vGPUController := management.DeviceFactory.Devices().V1beta1().VGPUDevice()
 	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
@@ -72,6 +88,8 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		nodeName:                 nodeName,
 		coreNodeCache:            coreNodeCtl.Cache(),
 		coreNodeCtl:              coreNodeCtl,
+		coreCmCache:              coreCmCtl.Cache(),
+		coreCmCtl:                coreCmCtl,
 		nodeCtl:                  nodeCtl,
 		sriovNetworkDeviceCache:  sriovCtl.Cache(),
 		vGPUController:           vGPUController,
@@ -90,6 +108,17 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if node == nil || node.DeletionTimestamp != nil || node.Name != h.nodeName {
 		return node, nil
 	}
+
+	spciCm, err := h.coreCmCache.Get(NS, SupportedPciConfigMap)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("[NodeController] Supported Pci Device %s does not exist", SupportedPciConfigMap)
+		}
+	}
+	for k, v := range spciCm.Data {
+		NodeSupportedPciDevices[k] = parsePciSpec(v)
+	}
+	logrus.Infof("[NodeController] Node %s has %d supported pci devices", node.Name, len(NodeSupportedPciDevices))
 
 	pci, err := ghw.PCI()
 	if err != nil {
@@ -134,6 +163,15 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 
 	h.nodeCtl.EnqueueAfter(name, defaultRequeuePeriod)
 	return node, err
+}
+
+func parsePciSpec(v string) []PciSpec {
+	var ps []PciSpec
+	err := json.Unmarshal([]byte(v), &ps)
+	if err != nil {
+
+	}
+	return ps
 }
 
 func SetupNodeObjects(nodeCtl ctl.NodeController) error {

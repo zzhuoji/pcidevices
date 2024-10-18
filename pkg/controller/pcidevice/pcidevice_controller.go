@@ -2,6 +2,8 @@ package pcidevice
 
 import (
 	"fmt"
+	"github.com/harvester/pcidevices/pkg/controller/nodes"
+	"github.com/jaypipes/ghw/pkg/pci"
 	"time"
 
 	"github.com/jaypipes/ghw"
@@ -51,7 +53,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 	commonLabels := map[string]string{"nodename": nodename} // label
 	var setOfRealPCIAddrs = make(map[string]bool)
 	for _, dev := range h.pci.Devices {
-		if !containsString(h.skipAddresses, dev.Address) {
+		if !containsString(h.skipAddresses, dev.Address) && isSupportedPciDevice(nodename, dev) {
 			setOfRealPCIAddrs[dev.Address] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev.Address, nodename)
 			// Check if device is stored
@@ -127,6 +129,25 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 	}
 
 	return nil
+}
+
+func isSupportedPciDevice(nodename string, dev *pci.Device) bool {
+	if v := nodes.NodeSupportedPciDevices[nodename]; v != nil {
+		for _, ps := range v {
+			//必须先匹配vendor和device
+			match := ps.VendorId == dev.Vendor.ID && ps.DeviceId == dev.Product.ID
+			if match && ps.AddressId == "" {
+				return true
+			}
+
+			if match && ps.AddressId != "" {
+				if ps.AddressId == dev.Address {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func containsString(elements []string, element string) bool {

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: supported-pci
+  namespace: harvester-system
+data:
+  srv01: |
+    [
+      {"vendorId": "8086", "deviceId": "1572", "addressId": "0000:02:00.1"},
+      {"vendorId": "19e5", "deviceId": "a222", "addressId": ""},
+      {"vendorId": "19e5", "deviceId": "a221", "addressId": ""}
+    ]
+  s3000: |
+    [
+      {"vendorId": "", "deviceId": "", "addressId": ""}
+    ]

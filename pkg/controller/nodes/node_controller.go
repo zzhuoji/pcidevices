@@ -109,7 +109,6 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	for k, v := range spciCm.Data {
 		config.NodeSupportedPciDevices[k] = config.ParsePciSpec(v)
 	}
-	logrus.Infof("[NodeController] Node %s has %d supported pci devices", node.Name, len(config.NodeSupportedPciDevices))
 
 	pci, err := ghw.PCI()
 	if err != nil {

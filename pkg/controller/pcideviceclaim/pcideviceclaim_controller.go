@@ -480,7 +480,6 @@ func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 	// webhook 都校验了
 	// name := pdc.Name
 
-
 	// Get PCIDevice for the PCIDeviceClaim
 	if pdc.OwnerReferences == nil {
 		msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)

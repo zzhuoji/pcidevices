@@ -12,5 +12,5 @@ data:
     ]
   s3000: |
     [
-      {"vendorId": "", "deviceId": "", "addressId": ""}
+      {"vendorId": "19e5", "deviceId": "a221", "addressId": ""}
     ]

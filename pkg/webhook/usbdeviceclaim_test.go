@@ -36,6 +36,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vm-with-usb-devices",
 			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"fake.com/device1":["usbdevice1"]}}`,
+			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
@@ -55,6 +58,21 @@ var (
 		},
 	}
 )
+
+func Test_UploadUSBDeviceClaimNotInUse(t *testing.T) {
+	assert := require.New(t)
+	harvesterfakeClient := harvesterfake.NewSimpleClientset()
+	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache)
+	old := usbdeviceclaim1.DeepCopy()
+	old.Spec.UserName = "admin"
+	newOne := usbdeviceclaim1.DeepCopy()
+	newOne.Spec.UserName = "admin2"
+
+	err := usbValidator.Update(nil, old, newOne)
+
+	assert.Error(err, "expected error when updating the userName")
+}
 
 func Test_DeleteUSBDeviceClaimInUse(t *testing.T) {
 	assert := require.New(t)

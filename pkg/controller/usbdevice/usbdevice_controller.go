@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -26,6 +26,15 @@ type DevHandler struct {
 	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient
 	usbCache       ctldevicerv1vbeta1.USBDeviceCache
 	usbClaimCache  ctldevicerv1vbeta1.USBDeviceClaimCache
+
+	reconcileSignal chan struct{}
+}
+
+type UsageList struct {
+	createList   []*v1beta1.USBDevice
+	updateList   []*v1beta1.USBDevice
+	deleteList   []*v1beta1.USBDevice
+	orphanedList []*v1beta1.USBDevice
 }
 
 var walkUSBDevices = deviceplugins.WalkUSBDevices
@@ -37,10 +46,11 @@ func NewHandler(
 	usbClaimCache ctldevicerv1vbeta1.USBDeviceClaimCache,
 ) *DevHandler {
 	return &DevHandler{
-		usbClient:      usbClient,
-		usbClaimClient: usbClaimClient,
-		usbCache:       usbCache,
-		usbClaimCache:  usbClaimCache,
+		usbClient:       usbClient,
+		usbClaimClient:  usbClaimClient,
+		usbCache:        usbCache,
+		usbClaimCache:   usbClaimCache,
+		reconcileSignal: make(chan struct{}, 1),
 	}
 }
 
@@ -101,12 +111,8 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case _, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-
-				// we need reconcile whatever there is a change in /dev/bus/usb/xxx
+			case <-orChan(watcher.Events, h.reconcileSignal):
+				// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
 				if err := h.reconcile(); err != nil {
 					logrus.Errorf("failed to reconcile USB devices: %v", err)
 				}
@@ -152,8 +158,8 @@ func (h *DevHandler) reconcile() error {
 	return nil
 }
 
-func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, deleteList []*v1beta1.USBDevice) error {
-	for _, usbDevice := range createList {
+func (h *DevHandler) handleList(usageList UsageList) error {
+	for _, usbDevice := range usageList.createList {
 		createdOne := &v1beta1.USBDevice{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   usbDevice.Name,
@@ -174,14 +180,32 @@ func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v
 		}
 	}
 
-	for _, usbDevice := range updateList {
+	for _, usbDevice := range usageList.updateList {
 		if _, err := h.usbClient.UpdateStatus(usbDevice); err != nil {
 			logrus.Errorf("failed to update existed USB device status: %v\n", err)
 			return err
 		}
 	}
 
-	for _, usbDevice := range deleteList {
+	for _, usbDevice := range usageList.orphanedList {
+		err := h.usbClaimClient.Delete(usbDevice.Name, &metav1.DeleteOptions{})
+
+		if err == nil {
+			continue
+		}
+
+		logrus.Errorf("failed to delete orphaned device claim: %v\n", err)
+		usbDevice.Status.Status = v1beta1.USBDeviceStatusOrphaned
+		usbDevice.Status.Message = "The USB device is orphaned, please remove it from virtual machine and disable it."
+
+		_, err = h.usbClient.UpdateStatus(usbDevice)
+		if err != nil {
+			logrus.Errorf("failed to update orphaned USB device status: %v\n", err)
+			continue
+		}
+	}
+
+	for _, usbDevice := range usageList.deleteList {
 		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
 			logrus.Errorf("failed to delete USB device: %v\n", err)
 			return err
@@ -191,10 +215,11 @@ func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v
 	return nil
 }
 
-func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]*v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice, []*v1beta1.USBDevice) {
+func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]*v1beta1.USBDevice, nodeName string) UsageList {
 	var (
-		createList []*v1beta1.USBDevice
-		updateList []*v1beta1.USBDevice
+		createList   []*v1beta1.USBDevice
+		updateList   []*v1beta1.USBDevice
+		orphanedList []*v1beta1.USBDevice
 	)
 
 	for _, localDevices := range localUSBDevices {
@@ -213,7 +238,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(name),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
 						PCIAddress:   localUSBDevice.PCIAddress,
 					},
 				}
@@ -227,7 +252,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(usbDeviceName(nodeName, localUSBDevice)),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
 						PCIAddress:   localUSBDevice.PCIAddress,
 					}
 					updateList = append(updateList, existedCp)
@@ -243,14 +268,22 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 	for _, usbDevice := range mapStoredUSBDevices {
 		usbDevice := usbDevice
 		if usbDevice.Status.Enabled {
-			logrus.Warningf("USB device %s is still enabled, but it's not discovered in local usb devices. Please check your node could detect that usb device, skippping delete.\n", usbDevice.Name)
-			continue
+			// This case is for some users might directly remove USB device without disabling `usbdeviceclaim`.
+			// Then re-plugging the USB device will change the status.devicePath,
+			// so we're not able to use original devicePath to find the device.
+			// Those USB device became orphaned, we should delete those `usbdevicecalim`.
+			orphanedList = append(orphanedList, usbDevice)
 		}
 
 		deleteList = append(deleteList, usbDevice)
 	}
 
-	return createList, updateList, deleteList
+	return UsageList{
+		createList:   createList,
+		updateList:   updateList,
+		deleteList:   deleteList,
+		orphanedList: orphanedList,
+	}
 }
 
 func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) string {
@@ -267,4 +300,16 @@ func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.U
 
 func resourceName(name string) string {
 	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
+}
+
+func orChan[T any, V any](ch1 chan T, ch2 <-chan V) <-chan struct{} {
+	orDone := make(chan struct{})
+	go func() {
+		defer close(orDone)
+		select {
+		case <-ch1:
+		case <-ch2:
+		}
+	}()
+	return orDone
 }

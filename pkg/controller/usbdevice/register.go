@@ -3,7 +3,7 @@ package usbdevice
 import (
 	"context"
 
-	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/pcidevices/pkg/config"
@@ -21,7 +21,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	virtClient := management.KubevirtFactory.Kubevirt().V1().KubeVirt()
 
 	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, usbDeviceCtrl.Cache(), usbDeviceClaimCtrl.Cache())
-	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient)
+	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, handler.reconcileSignal)
 
 	// Initial reconcile
 	if err := handler.reconcile(); err != nil {

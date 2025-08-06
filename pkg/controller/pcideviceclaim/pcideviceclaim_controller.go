@@ -1,6 +1,7 @@
 package pcideviceclaim
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
@@ -24,6 +25,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/iommu"
 )
 
 var (
@@ -161,6 +163,39 @@ func loadVfioDrivers() {
 	}
 }
 
+func checkVFIOModules() (bool, error) {
+	return checkModulesExists("/proc/modules", []string{"vfio_pci", "vfio_iommu_type1"})
+}
+
+// checkModulesExists checks the /proc/modules file to see if a module exists
+func checkModulesExists(filename string, modules []string) (bool, error) {
+	fd, err := os.Open(filename)
+	if err != nil {
+		return false, fmt.Errorf("failed to open /proc/modules: %v", err)
+	}
+	defer fd.Close()
+
+	mark := map[string]struct{}{}
+	scanner := bufio.NewScanner(fd)
+	for scanner.Scan() {
+		line := scanner.Text()
+		for _, module := range modules {
+			if strings.Contains(line, module) {
+				mark[module] = struct{}{}
+			}
+		}
+		if len(mark) == len(modules) {
+			return true, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, fmt.Errorf("failed to read /proc/modules: %v", err)
+	}
+
+	return false, nil
+}
+
 func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 	if deviceBoundToDriver(vfioPCIDriverPath, pd.Status.Address) {
 		return nil
@@ -281,9 +316,31 @@ func getOrphanedPCIDevices(
 	return &pdsOrphaned, nil
 }
 
+func checkGroupMap(pd *v1beta1.PCIDevice) error {
+	group, err := iommu.GetGroupMap(pd.Status.Address)
+	if err != nil {
+		return err
+	}
+
+	if group != pd.Status.IOMMUGroup {
+		return fmt.Errorf("group mismatch: sys %s pd %s", group, pd.Status.IOMMUGroup)
+	}
+	return nil
+}
+
 func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 
 	if pdc == nil || pdc.DeletionTimestamp != nil || (pdc.Spec.NodeName != h.nodeName) {
+		return pdc, nil
+	}
+
+	if found, err := checkVFIOModules(); !found {
+		if err != nil {
+			return pdc, fmt.Errorf("error checking vfio modules: %v", err)
+		}
+		logrus.Infof("Modules not loaded, retrying in 3 seconds")
+		loadVfioDrivers()
+		h.pdcClient.EnqueueAfter(pdc.Name, 3*time.Second)
 		return pdc, nil
 	}
 
@@ -291,6 +348,10 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 	// Get the PCIDevice object for the PCIDeviceClaim
 	pd, err := h.getPCIDeviceForClaim(pdc)
 	if pd == nil {
+		return pdc, err
+	}
+
+	if err := checkGroupMap(pd); err != nil {
 		return pdc, err
 	}
 
@@ -384,15 +445,19 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 	resourceName := pd.Status.ResourceName
 	// rule -> res name 没有则添加, 有则替换
 	// check if device is currently permitted
+	devPermitted := false
 	for i, permittedPCIDev := range permittedPCIDevices {
 		if permittedPCIDev.ResourceName == resourceName {
+			if permittedPCIDev.ExternalResourceProvider {
+				devPermitted = true
+			}
 			// remove device so it can be re-added
 			permittedPCIDevices = append(permittedPCIDevices[:i], permittedPCIDevices[i+1:]...)
 			break
 		}
 	}
 
-	{
+	if !devPermitted {
 		vendorID := pd.Status.VendorID
 		deviceID := pd.Status.DeviceID
 		devToPermit := kubevirtv1.PciHostDevice{
@@ -406,14 +471,22 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 }
 
 func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
-	// Get PCIDevice for the PCIDeviceClaim
+	// 我的逻辑，先保留代码
 	//if pdc.OwnerReferences == nil {
 	//	msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
 	//	return nil, errors.New(msg)
 	//}
 	//name := pdc.OwnerReferences[0].Name
 	// webhook 都校验了
-	name := pdc.Name
+	// name := pdc.Name
+
+
+	// Get PCIDevice for the PCIDeviceClaim
+	if pdc.OwnerReferences == nil {
+		msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
+		return nil, errors.New(msg)
+	}
+	name := pdc.OwnerReferences[0].Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("error getting claim's device: %s", err)

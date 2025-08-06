@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	controllergen "github.com/rancher/wrangler/pkg/controller-gen"
-	"github.com/rancher/wrangler/pkg/controller-gen/args"
-	_ "github.com/rancher/wrangler/pkg/generated/controllers/apiextensions.k8s.io/v1"
+	controllergen "github.com/rancher/wrangler/v3/pkg/controller-gen"
+	"github.com/rancher/wrangler/v3/pkg/controller-gen/args"
+	_ "github.com/rancher/wrangler/v3/pkg/generated/controllers/apiextensions.k8s.io/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/crd"
@@ -37,6 +37,8 @@ func main() {
 				kubevirtv1.SchemeGroupVersion.Group: {
 					Types: []interface{}{
 						kubevirtv1.KubeVirt{},
+						kubevirtv1.VirtualMachineInstance{},
+						kubevirtv1.VirtualMachine{},
 					},
 					GenerateTypes:   false,
 					GenerateClients: true,

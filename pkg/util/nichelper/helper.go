@@ -5,16 +5,19 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/net"
-	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
-	"github.com/rancher/wrangler/pkg/slice"
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	"github.com/rancher/wrangler/v3/pkg/slice"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 
 	"github.com/harvester/pcidevices/pkg/util/common"
 
@@ -269,7 +272,7 @@ func generateSRIOVDeviceObjects(nodeName string, nics *net.Info, skipNics []stri
 func generateSRIOVDev(nodeName string, nic *net.NIC) *v1beta1.SRIOVNetworkDevice {
 	return &v1beta1.SRIOVNetworkDevice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", nodeName, nic.Name),
+			Name: strings.ToLower(fmt.Sprintf("%s-%s", nodeName, nic.Name)),
 			Labels: map[string]string{
 				v1beta1.NodeKeyName: nodeName,
 			},

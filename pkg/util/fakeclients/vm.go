@@ -2,15 +2,20 @@ package fakeclients
 
 import (
 	"context"
+	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	kubevirtv1api "kubevirt.io/api/core/v1"
 
+	"github.com/rancher/wrangler/v3/pkg/generic"
+
 	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
-	kubevirtctlv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
+
+	"github.com/harvester/pcidevices/pkg/util/common"
 )
 
 const (
@@ -53,6 +58,10 @@ func (c VirtualMachineClient) Patch(_, _ string, _ types.PatchType, _ []byte, _ 
 	panic("implement me")
 }
 
+func (c VirtualMachineClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.ClientInterface[*kubevirtv1api.VirtualMachine, *kubevirtv1api.VirtualMachineList], error) {
+	panic("implement me")
+}
+
 type VirtualMachineCache func(string) kubevirtv1.VirtualMachineInterface
 
 func (c VirtualMachineCache) Get(namespace, name string) (*kubevirtv1api.VirtualMachine, error) {
@@ -74,7 +83,7 @@ func (c VirtualMachineCache) List(namespace string, selector labels.Selector) ([
 	return result, err
 }
 
-func (c VirtualMachineCache) AddIndexer(_ string, _ kubevirtctlv1.VirtualMachineIndexer) {
+func (c VirtualMachineCache) AddIndexer(_ string, _ generic.Indexer[*kubevirtv1api.VirtualMachine]) {
 	panic("implement me")
 }
 
@@ -88,10 +97,12 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 		}
 
 		for _, vm := range vmList {
-			for _, hostDevice := range vm.Spec.Template.Spec.Domain.Devices.HostDevices {
-				if hostDevice.Name == key {
-					vms = append(vms, vm)
-				}
+			deviceInfo, err := common.VMByHostDeviceName(vm)
+			if err != nil {
+				return nil, err
+			}
+			if slices.Contains(deviceInfo, key) {
+				vms = append(vms, vm)
 			}
 		}
 		return vms, nil
@@ -103,10 +114,12 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 		}
 
 		for _, vm := range vmList {
-			for _, gpuDevice := range vm.Spec.Template.Spec.Domain.Devices.GPUs {
-				if gpuDevice.Name == key {
-					vms = append(vms, vm)
-				}
+			deviceInfo, err := common.VMByVGPUDevice(vm)
+			if err != nil {
+				return nil, err
+			}
+			if slices.Contains(deviceInfo, key) {
+				vms = append(vms, vm)
 			}
 		}
 		return vms, nil

@@ -3,7 +3,7 @@ package webhook
 import (
 	"net/http"
 
-	"github.com/rancher/wrangler/pkg/webhook"
+	"github.com/rancher/wrangler/v3/pkg/webhook"
 
 	"github.com/harvester/harvester/pkg/webhook/types"
 )
@@ -15,11 +15,16 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
 		),
 		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewUSBDeviceClaimValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
-		NewDeviceHostValidation(clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(), clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()),
+		NewDeviceHostValidation(
+			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache(),
+		),
 		NewUSBDeviceValidator(),
 	}
 

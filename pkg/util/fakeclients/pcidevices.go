@@ -9,13 +9,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"k8s.io/client-go/rest"
+
+	"github.com/rancher/wrangler/v3/pkg/generic"
+
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 const (
-	IommuGroupByNode = "pcidevice.harvesterhci.io/iommu-by-node"
+	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
+	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
 )
 
 type PCIDevicesClient func() v1beta1.PCIDeviceInterface
@@ -52,6 +56,10 @@ func (p PCIDevicesClient) UpdateStatus(d *pcidevicev1beta1.PCIDevice) (*pcidevic
 	return p().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (p PCIDevicesClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*pcidevicev1beta1.PCIDevice, *pcidevicev1beta1.PCIDeviceList], error) {
+	panic("implement me")
+}
+
 type PCIDevicesCache func() v1beta1.PCIDeviceInterface
 
 func (p PCIDevicesCache) Get(name string) (*pcidevicev1beta1.PCIDevice, error) {
@@ -62,7 +70,7 @@ func (p PCIDevicesCache) List(labels.Selector) ([]*pcidevicev1beta1.PCIDevice, e
 	panic("implement me")
 }
 
-func (p PCIDevicesCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.PCIDeviceIndexer) {
+func (p PCIDevicesCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.PCIDevice]) {
 	panic("implement me")
 }
 
@@ -80,6 +88,18 @@ func (p PCIDevicesCache) GetByIndex(indexName, key string) ([]*pcidevicev1beta1.
 			}
 		}
 		return resp, err
+	case PCIDeviceByResourceName:
+		list, err := p().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		var resp []*pcidevicev1beta1.PCIDevice
+		for i, v := range list.Items {
+			if key == v.Status.ResourceName {
+				resp = append(resp, &list.Items[i])
+			}
+		}
+		return resp, nil
 	default:
 		return nil, nil
 	}

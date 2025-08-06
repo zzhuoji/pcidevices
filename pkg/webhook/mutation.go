@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/rancher/wrangler/pkg/webhook"
+	"github.com/rancher/wrangler/v3/pkg/webhook"
 	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/harvester/pkg/webhook/types"
@@ -12,12 +12,10 @@ import (
 
 func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 	mutators := []types.Mutator{
-		NewPodMutator(clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
-			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
-			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()),
 		NewPCIVMMutator(clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache(),
-			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()),
+			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim(),
+		),
 	}
 
 	router := webhook.NewRouter()

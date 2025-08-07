@@ -323,6 +323,16 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 		return pdc, nil
 	}
 
+	// First, ensure OwnerReference is set
+	if len(pdc.OwnerReferences) == 0 {
+		logrus.Infof("PCIDeviceClaim %s has no OwnerReference, setting it now", pdc.Name)
+		updatedPDC, err := h.setOwnerReference(pdc)
+		if err != nil {
+			return pdc, fmt.Errorf("failed to set OwnerReference for %s: %v", pdc.Name, err)
+		}
+		return updatedPDC, nil
+	}
+
 	if found, err := checkVFIOModules(); !found {
 		if err != nil {
 			return pdc, fmt.Errorf("error checking vfio modules: %v", err)
@@ -616,4 +626,45 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 func deviceBoundToDriver(driverPath string, pciAddress string) bool {
 	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, pciAddress))
 	return err == nil
+}
+
+// setOwnerReference sets the OwnerReference for a PCIDeviceClaim based on its spec
+func (h *Handler) setOwnerReference(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+	// Validate that spec fields are set
+	if pdc.Spec.NodeName == "" || pdc.Spec.Address == "" {
+		return pdc, fmt.Errorf("PCIDeviceClaim spec.nodeName and spec.address must be set")
+	}
+
+	// Calculate the expected PCIDevice name from spec
+	pciDeviceName := v1beta1.PCIDeviceNameForHostname(pdc.Spec.Address, pdc.Spec.NodeName)
+	logrus.Debugf("Looking for PCIDevice %s for claim %s", pciDeviceName, pdc.Name)
+
+	// Get the PCIDevice
+	pciDevice, err := h.pdClient.Get(pciDeviceName, metav1.GetOptions{})
+	if err != nil {
+		return pdc, fmt.Errorf("failed to get PCIDevice %s: %v", pciDeviceName, err)
+	}
+
+	// Create a copy for modification
+	pdcCopy := pdc.DeepCopy()
+
+	// Set the OwnerReference
+	pdcCopy.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion: pciDevice.APIVersion,
+			Kind:       pciDevice.Kind,
+			Name:       pciDevice.Name,
+			UID:        pciDevice.UID,
+			Controller: &[]bool{true}[0], // pointer to true
+		},
+	}
+
+	// Update the object
+	logrus.Debugf("Setting OwnerReference for PCIDeviceClaim %s to PCIDevice %s", pdc.Name, pciDevice.Name)
+	updatedPDC, err := h.pdcClient.Update(pdcCopy)
+	if err != nil {
+		return pdc, fmt.Errorf("failed to update PCIDeviceClaim %s with OwnerReference: %v", pdc.Name, err)
+	}
+
+	return updatedPDC, nil
 }

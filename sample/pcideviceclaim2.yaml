@@ -1,0 +1,8 @@
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: PCIDeviceClaim
+metadata:
+  name: arm01-000001001
+spec:
+  address: "0000:01:00.1"
+  nodeName:  "arm01"
+  userName:  "admin"

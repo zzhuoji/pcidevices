@@ -1,0 +1,8 @@
+apiVersion: v2
+appVersion: v1.5.1
+description: A Helm chart for Harvester PCI devices controller
+maintainers:
+- name: harvester
+name: harvester-pcidevices-controller
+type: application
+version: 1.5.1

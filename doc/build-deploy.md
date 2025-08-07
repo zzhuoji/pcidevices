@@ -12,6 +12,8 @@
 
 ### 部署
 
+> deploy 目录，直接指向 bash entrypoint.sh
+
 ```shell
 # 找可配置的PCI设备，这里以网卡为例
 [root@arm01 ~]# nmcli d s
@@ -49,4 +51,19 @@ addressId: 0000:01:00.0
 
 
 kubectl apply -f sample/supported-pci.yaml
+
+
+# 创建 对应的 pdc 
+
+# 查看
+[root@arm01 device-plugins]# lspci -nnk -d 15b3:
+01:00.0 Ethernet controller [0200]: Mellanox Technologies MT27800 Family [ConnectX-5] [15b3:1017]
+        Subsystem: Huawei Technologies Co., Ltd. Device [19e5:d135]
+        Kernel driver in use: vfio-pci
+        Kernel modules: mlx5_core
+01:00.1 Ethernet controller [0200]: Mellanox Technologies MT27800 Family [ConnectX-5] [15b3:1017]
+        Subsystem: Huawei Technologies Co., Ltd. Device [19e5:d135]
+        Kernel driver in use: mlx5_core
+        Kernel modules: mlx5_core
+
 ```

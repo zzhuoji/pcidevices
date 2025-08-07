@@ -4,11 +4,10 @@ metadata:
   name: supported-pci
   namespace: harvester-system
 data:
-  srv01: |
+  arm01: |
     [
-      {"vendorId": "8086", "deviceId": "1572", "addressId": "0000:02:00.1"},
-      {"vendorId": "19e5", "deviceId": "a222", "addressId": ""},
-      {"vendorId": "19e5", "deviceId": "a221", "addressId": ""}
+      {"vendorId": "15b3", "deviceId": "1017", "addressId": "0000:01:00.0"},
+      {"vendorId": "15b3", "deviceId": "1017", "addressId": "0000:01:00.1"}
     ]
   s3000: |
     [

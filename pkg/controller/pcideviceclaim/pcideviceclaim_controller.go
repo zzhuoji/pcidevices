@@ -14,9 +14,7 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"github.com/u-root/u-root/pkg/kmodule"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -152,15 +150,6 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 		}
 	}
 	return pdc, nil
-}
-
-func loadVfioDrivers() {
-	for _, driver := range []string{"vfio-pci", "vfio_iommu_type1"} {
-		logrus.Infof("Loading driver %s", driver)
-		if err := kmodule.Probe(driver, ""); err != nil {
-			logrus.Error(err)
-		}
-	}
 }
 
 func checkVFIOModules() (bool, error) {
@@ -418,7 +407,7 @@ func (h *Handler) createDevicePlugin(
 
 func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
-	kv, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Get(KubevirtCR, &v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Get(h.ctx, KubevirtCR, metav1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
@@ -427,7 +416,7 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 
 	kvCopy := reconcileKubevirtCR(kv, pd)
 	if !reflect.DeepEqual(kv.Spec.Configuration.PermittedHostDevices, kvCopy.Spec.Configuration.PermittedHostDevices) {
-		_, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Update(kvCopy)
+		_, err := h.virtClient.KubeVirt(DefaultKubevirtNS).Update(h.ctx, kvCopy, metav1.UpdateOptions{})
 		return err
 	}
 

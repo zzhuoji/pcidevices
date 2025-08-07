@@ -3,28 +3,44 @@ set -e
 
 source $(dirname $0)/version
 
-ARCH=${ARCH:-"amd64"}
-SUFFIX="-${ARCH}"
+# Define the target platforms
+PLATFORMS=${PLATFORMS:-"linux/amd64,linux/arm64"}
 
 cd $(dirname $0)/..
 
-TAG=${TAG:-${VERSION}${SUFFIX}}
-REPO=${REPO:-rancher}
+TAG=${TAG:-${VERSION}}
+REPO=${REPO:-registry.tydic.com/kubevirt}
 
 if echo $TAG | grep -q dirty; then
     TAG=dev
 fi
 
-mkdir -p dist/artifacts
-cp bin/pcidevices${SUFFIX} dist/artifacts/pcidevices${SUFFIX}
+# The --push flag is required to build multi-arch images and push them to a registry.
+# The --load flag is for loading the image into the local Docker daemon, and it's typically used for single-platform builds.
+# We check if PUSH is set to true to decide which flag to use.
+PUSH_IMAGE=${PUSH:-"true"}
 
 IMAGE=${REPO}/pcidevices:${TAG}
 DOCKERFILE=package/Dockerfile
-if [ -e ${DOCKERFILE}.${ARCH} ]; then
-    DOCKERFILE=${DOCKERFILE}.${ARCH}
+
+echo "Building image for platforms: ${PLATFORMS}"
+echo "Target image: ${IMAGE}"
+
+if [ "${PUSH_IMAGE}" == "true" ]; then
+    echo "Pushing multi-arch image..."
+    docker buildx build \
+      --platform ${PLATFORMS} \
+      -f ${DOCKERFILE} \
+      -t ${IMAGE} \
+      --push .
+    echo "Pushed ${IMAGE}"
+else
+    echo "Building and loading local-arch image..."
+    # Retain original behavior for local single-platform builds
+    # buildx will automatically use the host's architecture.
+    docker buildx build \
+      --load \
+      -f ${DOCKERFILE} \
+      -t ${IMAGE} .
+    echo "Built and loaded ${IMAGE} for local architecture"
 fi
-
-buildx build --load \
-  -f ${DOCKERFILE} -t ${IMAGE} .
-
-echo Built ${IMAGE}

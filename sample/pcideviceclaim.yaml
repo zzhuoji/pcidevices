@@ -1,8 +1,8 @@
 apiVersion: devices.harvesterhci.io/v1beta1
 kind: PCIDeviceClaim
 metadata:
-  name: srv01-000002001
+  name: arm01-000001000
 spec:
-  address: "0000:02:00.1"
-  nodeName:  "srv01"
+  address: "0000:01:00.0"
+  nodeName:  "arm01"
   userName:  "admin"

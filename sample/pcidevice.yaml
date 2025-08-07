@@ -18,3 +18,55 @@ status:
   nodeName: epc02
   resourceName: samsung.com/NVME_SSD_CONTROLLER_980_DRAMLESS
   vendorId: 144d
+---
+apiVersion: v1
+items:
+- apiVersion: devices.harvesterhci.io/v1beta1
+  kind: PCIDevice
+  metadata:
+    annotations:
+      harvesterhci.io/pcideviceDriver: mlx5_core
+    creationTimestamp: "2025-08-06T10:47:13Z"
+    generation: 1
+    labels:
+      nodename: arm01
+    name: arm01-000001000
+    resourceVersion: "642906670"
+    uid: 9b03c6d3-6ac0-4931-9fc0-80fb459a3b44
+  spec: {}
+  status:
+    address: "0000:01:00.0"
+    classId: "0200"
+    description: 'Ethernet controller: Mellanox Technologies MT27800 Family [ConnectX-5]'
+    deviceId: "1017"
+    iommuGroup: "27"
+    kernelDriverInUse: mlx5_core
+    nodeName: arm01
+    resourceName: mellanox.com/MT27800_FAMILY_CONNECTX5
+    vendorId: 15b3
+- apiVersion: devices.harvesterhci.io/v1beta1
+  kind: PCIDevice
+  metadata:
+    annotations:
+      harvesterhci.io/pcideviceDriver: mlx5_core
+    creationTimestamp: "2025-08-06T10:47:13Z"
+    generation: 1
+    labels:
+      nodename: arm01
+    name: arm01-000001001
+    resourceVersion: "642906678"
+    uid: 8e80d023-d62a-4983-9340-6870252f6568
+  spec: {}
+  status:
+    address: "0000:01:00.1"
+    classId: "0200"
+    description: 'Ethernet controller: Mellanox Technologies MT27800 Family [ConnectX-5]'
+    deviceId: "1017"
+    iommuGroup: "32"
+    kernelDriverInUse: mlx5_core
+    nodeName: arm01
+    resourceName: mellanox.com/MT27800_FAMILY_CONNECTX5
+    vendorId: 15b3
+kind: List
+metadata:
+  resourceVersion: ""

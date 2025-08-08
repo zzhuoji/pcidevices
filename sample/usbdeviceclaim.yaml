@@ -1,0 +1,11 @@
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: USBDeviceClaim
+metadata:
+  name: arm01-090c-2320-006003
+  ownerReferences:
+    - apiVersion: devices.harvesterhci.io/v1beta1
+      kind: USBDevice
+      name: arm01-090c-2320-006003
+      uid: e54093ab-ac07-456a-bb0f-36a992ae0620
+spec:
+  userName: "admin"

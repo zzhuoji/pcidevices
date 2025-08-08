@@ -1,0 +1,15 @@
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: USBDevice
+metadata:
+  labels:
+    nodename: arm01
+  name: arm01-090c-2320-006003
+status:
+  description: Unknown (Silicon Motion, Inc. - Taiwan (formerly Feiya Technology Corp.))
+  devicePath: /dev/bus/usb/006/003
+  enabled: false
+  nodeName: arm01
+  pciAddress: 0000:7a:02.0
+  productID: "2320"
+  resourceName: kubevirt.io/arm01-090c-2320-006003
+  vendorID: 090c

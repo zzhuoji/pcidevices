@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	KubeVirtNamespace      = "harvester-system"
+	KubeVirtNamespace      = "kubevirt"
 	KubeVirtResource       = "kubevirt"
 	KubeVirtResourcePrefix = "kubevirt.io/"
 )

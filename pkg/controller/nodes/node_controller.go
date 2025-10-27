@@ -48,6 +48,7 @@ type handler struct {
 	usbCtl                   ctl.USBDeviceController
 	usbClaimCtl              ctl.USBDeviceClaimController
 	virtClient               kubecli.KubevirtClient
+	migConfigurationController ctl.MigConfigurationController
 }
 
 const (
@@ -69,6 +70,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	usbClaimCtl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
 	virtClient := management.KubevirtClient
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
+	migConfigurationController := management.DeviceFactory.Devices().V1beta1().MigConfiguration()
 
 	h := &handler{
 		ctx:                      ctx,
@@ -89,6 +91,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		usbCtl:                   usbCtl,
 		usbClaimCtl:              usbClaimCtl,
 		virtClient:               virtClient,
+		migConfigurationController: migConfigurationController,
 	}
 
 	nodeCtl.OnChange(ctx, reconcilePCIDevices, h.reconcileNodeDevices)
@@ -135,7 +138,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)
 	}
-	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, nil, nil, nil)
+	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.migConfigurationController, nil, nil, nil)
 	err = gpuhelper.SetupSRIOVGPUDevices()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up SRIOV GPU devices for node %s: %v", h.nodeName, err)

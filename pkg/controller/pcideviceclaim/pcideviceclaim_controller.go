@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -112,6 +113,12 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 	// Get PCIDevice for the PCIDeviceClaim
 	pd, err := h.getPCIDeviceForClaim(pdc)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("pcidevice for pcideviceclaim %s not found, it may have been deleted already", pdc.Name)
+			// device not found, nothing to do
+			// we can't disable it either
+			return pdc, nil
+		}
 		logrus.Errorf("Error getting claim's device: %s", err)
 		return pdc, err
 	}
@@ -599,6 +606,11 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 
 	if orgDriver == "" {
 		logrus.Debugf("no original driver present on pcidevice: %s", pd.Name)
+		return nil
+	}
+
+	orgDriverPath := "/sys/bus/pci/drivers/" + orgDriver
+	if deviceBoundToDriver(orgDriverPath, address) {
 		return nil
 	}
 

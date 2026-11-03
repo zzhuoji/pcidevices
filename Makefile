@@ -14,11 +14,15 @@ $(TARGETS): .dapper
 	./.dapper $@
 
 # --- Local execution targets (without Dapper) ---
-.PHONY: ci-local
+.PHONY: ci-local package-local
 
 ci-local:
 	@echo "Running CI process locally without Dapper..."
 	@./scripts/ci
+
+package-local:
+	@echo "Running CI process locally without Dapper..."
+	@./scripts/package
 # --- End of local targets ---
 
 trash: .dapper
